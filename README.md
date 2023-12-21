@@ -9,7 +9,7 @@ positional weights, which are multiplied and used as a predictor of TCR activati
 
 BATMAN can be trained in two modes: (1) within-TCR, where the train and test peptides are associated with the same TCR, and BATMAN-inferred positional weight profiles are TCR-specific, and (2) leave-one-TCR-out, where peptides are tested for activation of a TCR left out of the training data, and BATMAN-inferred positional weight profile is common across all TCRs.
 
-For more information, refer to our preprint! For an interactive tutorial and test input, refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN-paper/blob/main/run_batman/pyBATMAN_Tutorial.ipynb).
+For more information, refer to our preprint! For an interactive tutorial and test input, refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb).
 
 # Installing and running pyBATMAN
 It is advisable to install and run the Python implementation of BATMAN ('pyBATMAN') in a Conda environment with Python v=3.11. For instruction on creating and activating Conda environments, please refer to the [Conda user guide](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#). For example, execute the following in your Anaconda prompt to create and activate a new environment.
@@ -24,7 +24,7 @@ In the newly created Conda environment named 'BATMAN-env' with Python v3.11 inst
 ```
 pip install pybatman
 ```
-Once installed successfully, you should be able to run a [test script](https://github.com/meyer-lab-cshl/BATMAN-paper/blob/main/run_batman/test_script.py) on [sample input data](https://github.com/meyer-lab-cshl/BATMAN-paper/blob/main/run_batman/test_input.csv), both available to download from this repository.
+Once installed successfully, you should be able to run a [test script](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/test_script.py) on [sample input data](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/test_input.csv), both available to download from this repository.
 
 BATMAN combines TCR-pMHC data across multiple TCRs to infer TCR-specific positional weight profiles and an amino acid distance matrix. To train on an input dataset, pyBATMAN requires an amino acid matrix prior, and a training mode to be specified. 
 
@@ -39,7 +39,7 @@ inferred_weight_profiles, inferred_AA_matrix = train('test_input.csv','full',
                                              steps=50000, seed=10)
 ```
 
-The input TCR-pMHC dataset must be a csv file containing 4 columns with the following names and structure: "tcr" and "peptide" columns referring to the name of the TCR and sequence of the peptide respectively in a TCR-pMHC pair. The "index" column refers to the index peptide of the TCR. Finally, the "activation" column refers to ordered categorical activation level of the TCR, when it interacts with the indicated peptide: 0 means no activation, 1 means weak activation, and 2 means strong activation. Note that whereas we standardized BATMAN to work with 2 or 3 TCR activation levels, you can have an arbitrary number of activation levels in your data, but they must start from 0 (non or weakest activation) and be consecutive integers denoting increasing activation without any missing level. Refer to the [sample input data](https://github.com/meyer-lab-cshl/BATMAN-paper/blob/main/run_batman/test_input.csv) as an example. 
+The input TCR-pMHC dataset must be a csv file containing 4 columns with the following names and structure: "tcr" and "peptide" columns referring to the name of the TCR and sequence of the peptide respectively in a TCR-pMHC pair. The "index" column refers to the index peptide of the TCR. Finally, the "activation" column refers to ordered categorical activation level of the TCR, when it interacts with the indicated peptide: 0 means no activation, 1 means weak activation, and 2 means strong activation. Note that whereas we standardized BATMAN to work with 2 or 3 TCR activation levels, you can have an arbitrary number of activation levels in your data, but they must start from 0 (non or weakest activation) and be consecutive integers denoting increasing activation without any missing level. Refer to the [sample input data](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/test_input.csv) as an example. 
 
 Once pyBATMAN outputs the positional weight profiles and the amino acid substitution matrix, we can multiply them to calculate a distance between an index peptide and its mutant, and predict if the mutant peptide activates the TCR or not based on how far it is from the index peptide. The distance between peptides can be conveniently calculated with pyBATMAN using the following function.
 
@@ -51,10 +51,10 @@ peptide_distance = peptide2index(index_peptide,
                                  inferred_weight_profiles)
 ```
 
-For an interactive tutorial on different functions available with pyBATMAN, please refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN-paper/blob/main/run_batman/pyBATMAN_Tutorial.ipynb). The Jupyter notebook trains and validates pyBATMAN on the test data and visualizes the results.
+For an interactive tutorial on different functions available with pyBATMAN, please refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb). The Jupyter notebook trains and validates pyBATMAN on the test data and visualizes the results.
 
 # BATMAN preprint
-The folder [paper_figures](https://github.com/meyer-lab-cshl/BATMAN-paper/tree/main/paper_figures) in this repository contains all codes and raw data to reproduce figures in the BATMAN preprint. 
+We will post the manuscript to bioRxiv soon. bookmark this page for updates! Codes to reproduce the manuscript figures wil be available upon publication.
 
 # Downloading BATMAN dataset
-The fully curated database of TCR-pMHC interactions can be downloaded as an excel sheet from the [data folder](https://github.com/meyer-lab-cshl/BATMAN-paper/blob/main/paper_figures/data/TCR_epitope_database.xlsx) in this repository. The test input data is a subset of our database and is sourced from the paper: "Neoantigen quality predicts immunoediting in survivors of pancreatic cancer", Nature, volume 606, pages 389-395 (2022) figures 3d and 3f.
+The fully curated database of publicly-available TCR-pMHC interactions can be downloaded as an excel sheet from the [database folder](https://github.com/meyer-lab-cshl/BATMAN/tree/main/TCR_epitope_database) in this repository. The full database will be available upon publication. The test input data is a subset of our database and is sourced from the paper: "Neoantigen quality predicts immunoediting in survivors of pancreatic cancer", Nature, volume 606, pages 389-395 (2022) figures 3d and 3f.
