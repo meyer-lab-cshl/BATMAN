@@ -1,0 +1,26 @@
+[build-system]
+
+requires = ["hatchling"]
+
+build-backend = "hatchling.build"
+
+[project]
+
+name = "pybatman"
+
+version = "0.0.1"
+
+authors = [ { name="Amitava Banerjee", email="amitavab@cshl.edu" }, ]
+
+description = "Package for predicting peptide mutation effects on T cell receptor activation."
+
+readme = "README.md"
+
+requires-python = ">=3.11.5"
+
+classifiers = [ "Programming Language :: Python :: 3", "License :: OSI Approved :: BSD License", "Operating System :: OS Independent" ]
+
+dependencies = [ "pandas >= 2.1.1", "numpy >= 1.25.2", "pymc >= 5.6.1","arviz >= 0.16.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pybatman"]
