@@ -1,4 +1,5 @@
-[<img src="https://img.shields.io/badge/Jupyter-F37626.svg?&style=for-the-badge&logo=Jupyter&logoColor=white">](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)&emsp;[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/meyer-lab-cshl/BATMAN/blob/main/LICENSE)
+
+[![License](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)&emsp;[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/meyer-lab-cshl/BATMAN/blob/main/LICENSE)
 
 # BATMAN: <ins>B</ins>ayesian Inference of <ins>A</ins>ctivation of <ins>T</ins>CR by <ins>M</ins>utant <ins>An</ins>tigens
 <p align="center" width="100%">
@@ -11,11 +12,18 @@ A single T Cell Receptor (TCR) can recognize a diverse variety of peptides, an e
 
 BATMAN predicts TCR activation by mutant peptides based on their distances to the TCR's index peptide. The peptide-to-index distance is a product of a learned positional weight profile vector, corresponding to effects of mutated residues at different positions in the sequence, and a learned AA substitution distance from the index peptide amino acid to the mutant amino acid.
 
-BATMAN can be trained in two modes: (1) within-TCR, where the train and test peptides are associated with the same TCR, and BATMAN-inferred positional weight profiles are TCR-specific, and (2) leave-one-TCR-out, where peptides are tested for activation of a TCR left out of the training data, and BATMAN-inferred positional weight profile is common across all TCRs.
+BATMAN can be trained in two modes: (1) within-TCR, where the train and test peptides are associated with the same TCR, and BATMAN-inferred positional weight profiles are TCR-specific, and (2) leave-one-TCR-out, where peptides are tested for activation of a TCR left out of the training data, and BATMAN-inferred positional weight profile is common across all TCRs. For more information, refer to our preprint below! 
 
-For more information, refer to our preprint! For an interactive tutorial and test input, refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb).
+# Interactive tutorial of pyBATMAN
+<a target="_blank" href="https://colab.research.google.com/github/https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
+For an interactive tutorial on pyBATMAN usage, refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb).
 
 # Installing and running pyBATMAN
+[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)
+
 It is advisable to install and run the Python implementation of BATMAN ('pyBATMAN') in a Conda environment with Python v=3.11. For instruction on creating and activating Conda environments, please refer to the [Conda user guide](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#). For example, execute the following in your Anaconda prompt to create and activate a new environment.
 
 ```
