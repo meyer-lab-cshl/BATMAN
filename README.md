@@ -1,5 +1,5 @@
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)&emsp;[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/meyer-lab-cshl/BATMAN/blob/main/LICENSE)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)&emsp;[![DOI:10.1101/2024.01.22.576714](http://img.shields.io/badge/DOI-10.1101/2024.01.22.576714-B31B1B.svg)](https://doi.org/10.1101/2024.01.22.576714)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)&emsp;[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/meyer-lab-cshl/BATMAN/blob/main/LICENSE)
 
 # BATMAN: <ins>B</ins>ayesian Inference of <ins>A</ins>ctivation of <ins>T</ins>CR by <ins>M</ins>utant <ins>An</ins>tigens
 <p align="center" width="100%">
@@ -64,7 +64,11 @@ peptide_distance = peptide2index(index_peptide,
 For an interactive tutorial on different functions available with pyBATMAN, please refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb). The Jupyter notebook trains and validates pyBATMAN on the test data and visualizes the results.
 
 # BATMAN preprint
-We will post the manuscript to bioRxiv soon. bookmark this page for updates! Codes to reproduce the manuscript figures wil be available upon publication.
+[![DOI:10.1101/2024.01.22.576714](http://img.shields.io/badge/DOI-10.1101/2024.01.22.576714-B31B1B.svg)](https://doi.org/10.1101/2024.01.22.576714)
+
+"BATMAN: Improved T cell receptor cross-reactivity prediction benchmarked on a comprehensive mutational scan database", Amitava Banerjee, David J. Pattinson, Cornelia L. Wincek, Paul Bunk, Sarah R. Chapin, Saket Navlakha, and Hannah V. Meyer, bioRxiv (2023), [doi.org/10.1101/2024.01.22.576714](https://doi.org/10.1101/2024.01.22.576714). Happy Reading!!
+
+Codes to reproduce the manuscript figures wil be available upon publication.
 
 # Downloading BATMAN dataset
 The fully curated database of publicly-available TCR-pMHC interactions can be downloaded as an excel sheet from the [database folder](https://github.com/meyer-lab-cshl/BATMAN/tree/main/TCR_epitope_database) in this repository. The full database will be available upon publication. The test input data is a subset of our database and is sourced from the paper: "Neoantigen quality predicts immunoediting in survivors of pancreatic cancer", Nature, volume 606, pages 389-395 (2022) figures 3d and 3f.
