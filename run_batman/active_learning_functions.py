@@ -284,7 +284,7 @@ features, specified priors and TCR activation categories
 
 def inference_weights_only(peptide_feature, # features for each peptide
                                   peptide_activation_category,#activation category
-                                  prior_mean_sd,#beta prior mean and sd
+                                  prior_mean,#beta prior mean and sd
                                   seed, steps): #Random seed and #steps for sampler
     import arviz as az
     import pymc as pm
@@ -296,10 +296,10 @@ def inference_weights_only(peptide_feature, # features for each peptide
     n_level = 1 + max(peptide_activation_category)
     
     # Raise shape error if prior size does not match peptide length
-    if ((prior_mean_sd.dtype not in ('int','float')) or
-        (np.shape(prior_mean_sd)!=(2,peptide_length))):
+    if ((prior_mean.dtype not in ('int','float')) or
+        (np.shape(prior_mean)!=(1,peptide_length))):
         sys.exit("".join(["prior array must be a numerical array of shape ",
-                  "(2,peptide length)"]))
+                  "(1,peptide length)"]))
     
     # Build Bayesian classifier
     with pm.Model() as peptide_classifier_model:        
@@ -308,7 +308,7 @@ def inference_weights_only(peptide_feature, # features for each peptide
         
         # positional weights, pooled over TCRs and positions
         weights = pm.Normal("weights",
-                          mu = prior_mean_sd[0,:],
+                          mu = prior_mean,
                           sigma = pm.Exponential("sd",lam=1,
                                                  shape=(1,peptide_length))) 
         
@@ -349,12 +349,9 @@ def inference_weights_only(peptide_feature, # features for each peptide
         0:(0+peptide_length),0].to_numpy(),
         newshape=(1,peptide_length),order='C')
     
-    # Extract sd of position-dependent weights of TCRs         
-    inferred_weights_sd=np.reshape(inferred_params.iloc[
-        0:(0+peptide_length),1].to_numpy(),
-        newshape=(1,peptide_length),order='C')
+    
         
-    return inferred_weights,inferred_weights_sd
+    return inferred_weights
 
 #######################################################################
 ###################################################################
@@ -638,7 +635,7 @@ Takes a train and test dataframe, priors, #steps, and outputs auc and weights
 def active_learning_cycle(active_train_data,
           active_test_data,
           aa_matrix,
-          prior_mean_sd,
+          prior_mean,
           steps=20000,
           seed=101):
     
@@ -654,9 +651,9 @@ def active_learning_cycle(active_train_data,
     peptide_activation_category = active_train_data.loc[:,'activation']
     
     # Train BATMAN to infer TCR-independent weights and AA distance matrix
-    inferred_weights_al, _ = inference_weights_only(peptide_feature,
+    inferred_weights_al = inference_weights_only(peptide_feature,
                                              peptide_activation_category,
-                                             prior_mean_sd,
+                                             prior_mean,
                                              steps = steps,
                                              seed = seed)
     
@@ -683,4 +680,110 @@ def active_learning_cycle(active_train_data,
     auc_mean = np.nanmean(auc_al) 
     
     return inferred_weights_al,auc_mean
+###############################################################################
+'''
+Function for one active learning step.
+Takes a train and test dataframe, priors, #steps, and outputs auc and weights
+'''
+def return_peptides_to_sample(index_peptide, # index peptide
+                              aa_matrix, # AA matrix to find distance
+                              weights, # positional weights
+                              sampled_seqs=[], # mutants already sampled
+                              seed=101):
+    
+    import numpy as np
+    import pandas as pd
+    
+    '''Create all single-AA mutants of the index'''
+    #AA name list
+    aa_list=np.array(['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R',
+                     'S','T','V','W','Y'])
+    
+    peptide_length = len(index_peptide)    
+    index_list = np.tile(index_peptide,(20,peptide_length))    
+    all_mutant_seqs = index_list
+    
+    for aa in np.arange(20):
+        for position in np.arange(peptide_length):
+           wt_seq = all_mutant_seqs[aa,position]
+           mutant_seq = list(wt_seq)
+           mutant_seq[position] = aa_list[aa]
+           all_mutant_seqs[aa,position] = ''.join(mutant_seq)
+    
+    #remove redundant members
+    all_mutant_seqs = all_mutant_seqs[all_mutant_seqs!=index_peptide]
+    
+    '''peptides available to be labelled'''
+    # Take our tested peptides from the set
+    test_data_full = np.setdiff1d(all_mutant_seqs,sampled_seqs)
+    
+    # Array of mutation positions and distances     
+    positional_distances = generate_mutant_features(index_peptide,
+                                         test_data_full.tolist(), 
+                                         aa_matrix)
+    
+    mutation_position = pd.DataFrame(np.where(positional_distances!=0)[1],
+                                     columns = ['position'])
+    
+    # Get distance based on learned weight w_AL
+    distances = peptide2index(index_peptide,
+                              test_data_full.tolist(),
+                              aa_matrix, 
+                              weights)
+    
+    median_distance = np.median(distances)
+    _,BinEdges=pd.qcut(distances,3,retbins=True)
+    
+    distance1 = BinEdges[1]
+    distance2 = median_distance  
+    
+    # rank positional weights
+    w_ranks = (weights).argsort().argsort()
+    
+    # For every position, get a mutant
+    train_indices = np.zeros((peptide_length)).astype(int)
+    
+    for mutation in np.arange(peptide_length): # peptide positions to sample
+    
+        #get the closest to median distance mutant
+        distances_position = distances[mutation_position.position==mutation] 
+        
+        # at first step, pick judiciously
+        if w_ranks[0,mutation]>=5:             
+            distance_index =  np.argsort(abs(distances_position-distance1))[0]
+            
+            train_indices[mutation] = mutation_position[
+            mutation_position.position==mutation].index[distance_index]                              
+
+        else:                
+            distance_index =  np.argsort(abs(distances_position-distance2))[0]
+            
+            train_indices[mutation] = mutation_position[
+            mutation_position.position==mutation].index[distance_index]
+        
+        al_peptides = test_data_full[train_indices]
+    
+    
+    
+    return al_peptides
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
