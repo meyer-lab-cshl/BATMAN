@@ -18,7 +18,7 @@ assay. We show that BATMAN outperforms existing methods, reveals structural and 
 interactions, and can predict polyclonal T cell responses and TCR targets with high sequence dissimilarity.
 
 <div align='center'>
-<img src="BATMAN_schematic_github.jpg" width="400" height="400"  alt="BATMAN schematic diagram showing that it integrates mutational
+<img src="BATMAN_schematic.jpg"   alt="BATMAN schematic diagram showing that it integrates mutational
   scan datasets across many TCRs to build a hierarchical Bayesian inference model. BATMAN infers hyperparameters from the training database
   and uses them to generate prior distributions for cross-TCR AA distance and TCR-specific
 positional weights, which are multiplied and used as a predictor of TCR activation by a given mutant."/>
