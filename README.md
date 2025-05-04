@@ -31,7 +31,7 @@ positions in the sequence, and a learned AA substitution distance from the index
 BATMAN can be trained in two modes: (1) within-TCR, where the train and test peptides are associated with the same TCR, and
 BATMAN-inferred positional weight profiles are TCR-specific, and (2) leave-one-TCR-out, where peptides are tested for activation
 of a TCR left out of the training data, and BATMAN-inferred positional weight profile is common across all TCRs. For more information,
-refer to our [![DOI:10.1101/2024.01.22.576714](http://img.shields.io/badge/DOI-10.1101/2024.01.22.576714-B31B1B.svg)](https://doi.org/10.1101/2024.01.22.576714) (now accepted in Cell Systems). 
+refer to our preprint [![DOI:10.1101/2024.01.22.576714](http://img.shields.io/badge/DOI-10.1101/2024.01.22.576714-B31B1B.svg)](https://doi.org/10.1101/2024.01.22.576714) (now accepted in Cell Systems). 
 
 # Interactive tutorial of pyBATMAN
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)
