@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 name = "pybatman"
 
-version = "0.0.1"
+version = "1.0.1"
 
 authors = [ { name="Amitava Banerjee", email="amitavab@cshl.edu" }, ]
 
@@ -16,11 +16,17 @@ description = "Package for predicting peptide mutation effects on T cell recepto
 
 readme = "README.md"
 
-requires-python = ">=3.11.5"
+requires-python = ">=3.11"
 
 classifiers = [ "Programming Language :: Python :: 3", "License :: OSI Approved :: BSD License", "Operating System :: OS Independent" ]
 
-dependencies = [ "pandas >= 2.1.1", "numpy >= 1.25.2", "pymc >= 5.6.1","arviz >= 0.16.0"]
+dependencies = [ "pandas >= 2.2.2", "numpy >= 2.0.2", "pymc >= 5.23.0","arviz >= 0.21.0", "openpyxl >= 3.1.5"]
+
+[project.urls]
+
+"Homepage" = "https://github.com/meyer-lab-cshl/BATMAN"
+
+"Bug Tracker" = "https://github.com/meyer-lab-cshl/BATMAN/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["pybatman"]

@@ -127,7 +127,7 @@ def generate_mutant_features(index_peptide, # Single index peptide or list
     mutant_peptides_joined = np.array(list("".join(mutant_peptide_list)))
     
     # Compare mutant seqs to index peptide seq to find mutation locations
-    is_mutation_location = np.compare_chararrays(list(index_peptide_repeated),
+    is_mutation_location = np.char.compare_chararrays(list(index_peptide_repeated),
                             list(mutant_peptides_joined),
                             "!=",'True')
     
@@ -209,6 +209,8 @@ features and TCR activation categories
 def pooled_inference_weights_only(TCR_index, # TCR index for each peptide
                                   peptide_feature, # features for each peptide
                                   peptide_activation_category,#activation category
+                                  peptide_bindlevel, #pMHC binding category
+                                  mhc_features, #continuous pMHC features
                                   seed, steps): #Random seed and #steps for sampler
     import arviz as az
     import pymc as pm
@@ -223,6 +225,19 @@ def pooled_inference_weights_only(TCR_index, # TCR index for each peptide
     with pm.Model() as peptide_classifier_model:        
         
         # TCR-specific parameters
+        if np.sum(mhc_features)!=0: #If MHC feature info is present
+            mhc_feature_effect = pm.Normal("mhc_feature_effect", # MHC feature effect, pooled across TCRs
+                               mu = pm.Normal("mu_mhc_feature", mu=0, sigma=1),
+                               sigma = pm.Exponential("sigma_mhc_feature",lam=1),
+                               shape = (n_tcr,np.shape(mhc_features)[1]))
+        
+        if np.sum(peptide_bindlevel)!=0: #If MHC binding info is present
+            # parameters for incorporating MHC-binding information           
+            
+            mhc_effect_add = pm.Beta("mhc_effect_add", # MHC feature effect, pooled across TCRs
+                               alpha = pm.Gamma("alpha_add", alpha=2, beta=2),
+                               beta = pm.Gamma("beta_add", alpha=2, beta=2),
+                               shape = (n_tcr,3))        
         
         # positional weights, pooled over TCRs and positions
         weights = pm.Beta("weights",
@@ -235,13 +250,23 @@ def pooled_inference_weights_only(TCR_index, # TCR index for each peptide
         sigma_bar = pm.HalfNormal("sigma_bar", sigma=2)
         normal = pm.Normal("normal", mu=0, sigma=1, shape=n_tcr) 
         
-        intercepts=pm.Deterministic("intercepts",mu_bar+sigma_bar*normal)  
-             
+        intercepts=pm.Deterministic("intercepts",mu_bar+sigma_bar*normal)
         
-        # Full Predictor
-        eta = intercepts[TCR_index] - pm.math.sum(
-            peptide_feature*weights[TCR_index,:],axis=1)
+        #Full predictor
+        # baseline
+        eta = - pm.math.sum(
+            peptide_feature*weights[TCR_index,:],axis=1) 
+        #positional weight * peptide feature summed over positions 
         
+        if np.sum(peptide_bindlevel)!=0: # pMHC BindLevel info available
+            eta = eta - pm.math.sum(peptide_bindlevel*mhc_effect_add[TCR_index,:],
+                                                        axis=1)       
+        if np.sum(mhc_features)!=0: #If MHC feature info is present
+            eta = eta - pm.math.sum(mhc_feature_effect*mhc_feature_effect[TCR_index,:],
+                                    axis=1) 
+            
+        eta = eta + intercepts[TCR_index] 
+            
         # Binomial Regression
         # Generate cutpoints
         cutpoints=pm.Normal("cutpoints", 
@@ -259,16 +284,53 @@ def pooled_inference_weights_only(TCR_index, # TCR index for each peptide
     with peptide_classifier_model:
          posterior_draws=pm.fit(n=steps,method="advi",
                                 random_seed=seed,progressbar=True)
-         inferred_params = az.summary(posterior_draws.sample(50000))
+         inferred_params = az.summary(posterior_draws.sample(50000,
+                                                             random_seed=seed))
          
-         
-    # Extract position-dependent weights of TCRs         
+     
+    # Extract position-dependent weights of TCRs
+    # Find start index of inferred weight parameters
+    weight_index = np.argwhere(inferred_params.index=='weights[0, 0]')[0,0]
+        
+    # extract and reshape TCR-specific positional weights
     inferred_weights=np.reshape(inferred_params.iloc[
-        (n_tcr+3):(n_tcr+3+n_tcr*peptide_length),0].to_numpy(),
-        newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
+        weight_index:weight_index+n_tcr*peptide_length,
+        0].to_numpy(),newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
     
-    return inferred_weights
-
+    # Return parameters if MHC info is absent
+    if np.sum(peptide_bindlevel)==0 and np.sum(mhc_features)==0: #No MHC info available
+        return inferred_weights
+    
+    else: #MHC info available
+        # Get locations of MHC parameters        
+        mhc_effect_index = np.argwhere(inferred_params.index=='mhc_effect_add[0, 0]')[0,0]
+        
+        # Extract inferred MHC effect parameters
+        inferred_mhc_effect_add = np.reshape(inferred_params.iloc[
+            mhc_effect_index:mhc_effect_index+n_tcr*3,0].to_numpy(),
+            newshape=(n_tcr,3),order='C')
+        
+        #output
+        inferred_mhc_effects = inferred_mhc_effect_add
+        
+        if np.sum(mhc_features)!=0: #MHC feature info available        
+            # Extract TCR-specific MHC binding feature
+            # Get locations of MHC parameters
+            mhc_feature_effect_index = np.argwhere(
+                        inferred_params.index=='mhc_feature_effect[0, 0]')[0,0]
+            
+            # Extract inferred MHC effect parameters
+            inferred_mhc_feature_effects = np.reshape(inferred_params.iloc[
+                mhc_feature_effect_index:mhc_feature_effect_index+n_tcr*np.shape(mhc_features)[1],
+                0].to_numpy(),
+                newshape=(n_tcr,np.shape(mhc_features)[1]),order='C')
+            
+            inferred_mhc_effects = np.concatenate((inferred_mhc_effect_add,
+                                    inferred_mhc_feature_effects),axis=1)
+                    
+        return inferred_weights,inferred_mhc_effects
+    
+    
 #######################################################################
 '''
 Function that outputs sampled positional weights and AA matrix after pooled
@@ -281,10 +343,13 @@ def pooled_inference(TCR_index, # TCR index for each peptide
                                   peptide_activation_category,#activation category
                                   aa_change_index,#indexing which AA to which
                                   mode, # symmetric (default) or full
+                                  peptide_bindlevel, #pMHC binding category
+                                  mhc_features, #continuous pMHC features,
                                   seed, steps): #Random seed and #steps for sampler
     import arviz as az
     import pymc as pm
     import numpy as np
+
 
     # Infer number of TCRs, peptide length, and number of TCR activation levels
     n_tcr = len(np.unique(TCR_index))
@@ -312,11 +377,24 @@ def pooled_inference(TCR_index, # TCR index for each peptide
         #0 at beginning put for No AA substituion
         
         # TCR-specific parameters
+        if np.sum(mhc_features)!=0: #If MHC feature info is present
+            mhc_feature_effect = pm.Normal("mhc_feature_effect", # MHC feature effect, pooled across TCRs
+                               mu = pm.Normal("mu_mhc_feature", mu=0, sigma=1),
+                               sigma = pm.Exponential("sigma_mhc_feature",lam=1),
+                               shape = (n_tcr,np.shape(mhc_features)[1]))
         
+        if np.sum(peptide_bindlevel)!=0: #If MHC binding info is present
+            # parameters for incorporating MHC-binding information            
+            
+            mhc_effect_add = pm.Beta("mhc_effect_add", # MHC feature effect, pooled across TCRs
+                               alpha = pm.Gamma("alpha_add", alpha=2, beta=2),
+                               beta = pm.Gamma("beta_add", alpha=2, beta=2),
+                               shape = (n_tcr,3))
+                        
         # positional weights, pooled over TCRs and positions
         weights = pm.Beta("weights",
-                          alpha = pm.Gamma("alpha_w", mu=1.0, sigma=0.5),
-                          beta = pm.Gamma("beta_w", mu=5.0, sigma=1.0),
+                          alpha = pm.Gamma("alpha_w", alpha=2, beta=2),
+                          beta = pm.Gamma("beta_w", alpha=2, beta=2),
                           shape=(n_tcr,peptide_length))        
         
         # Hyperprior parameters for TCR-specific intercept        
@@ -324,16 +402,24 @@ def pooled_inference(TCR_index, # TCR index for each peptide
         sigma_bar = pm.HalfNormal("sigma_bar", sigma=2)
         normal = pm.Normal("normal", mu=0, sigma=1, shape=n_tcr) 
         
-        intercepts=pm.Deterministic("intercepts",mu_bar+sigma_bar*normal)  
-             
+        intercepts=pm.Deterministic("intercepts",mu_bar+sigma_bar*normal)
         
-        # Full Predictor
-        eta = intercepts[TCR_index] - pm.math.sum(
+        #Full predictor
+        # baseline
+        eta = - pm.math.sum(
             weights[TCR_index,:]*peptide_feature*
             (1 + aa_distance_multiplier[aa_change_index_unique]),
-            axis=1) #positional weight * D *(1+multiplier) summed over positions
-                    
+            axis=1) #positional weight * D *(1+multiplier) summed over positions 
         
+        if np.sum(peptide_bindlevel)!=0: # pMHC BindLevel info available
+            eta = eta - pm.math.sum(peptide_bindlevel*mhc_effect_add[TCR_index,:],
+                                                        axis=1)
+       
+        if np.sum(mhc_features)!=0: #If MHC feature info is present
+            eta = eta - pm.math.sum(mhc_feature_effect*mhc_feature_effect[TCR_index,:],
+                                    axis=1)
+            
+        eta = eta + intercepts[TCR_index]
         # Binomial Regression
         # Generate cutpoints
         cutpoints=pm.Normal("cutpoints", 
@@ -351,16 +437,22 @@ def pooled_inference(TCR_index, # TCR index for each peptide
     with peptide_classifier_model:
          posterior_draws=pm.fit(n=steps,method="advi",
                                 random_seed=seed,progressbar=True)
-         inferred_params = az.summary(posterior_draws.sample(50000))     
-         
-    # Extract position-dependent weights of TCRs         
+         inferred_params = az.summary(posterior_draws.sample(50000,
+                                                             random_seed=seed))
+    # Extract position-dependent weights of TCRs
+    # Find starting index of inferred weight parameters         
+    weight_index = np.argwhere(inferred_params.index=='weights[0, 0]')[0,0]
+    # Extract weights    
     inferred_weights=np.reshape(inferred_params.iloc[
-        (n_tcr+len(unique_indices)+4):
-        (n_tcr+len(unique_indices)+4+n_tcr*peptide_length),0].to_numpy(),
-        newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
-        
-    # Extract inferred AA distance matrix multipliers 
-    aa_multiplier = inferred_params.iloc[1:len(unique_indices),0].to_numpy()
+        weight_index:weight_index+n_tcr*peptide_length,
+        0].to_numpy(),newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
+    
+    # Extract inferred AA distance matrix multipliers
+    # Find starting index of inferred weight parameters 
+    aa_start_index = np.argwhere(inferred_params.index=='aa_distance_multiplier[0]')[0,0]
+    
+    # Extrat aa distance parameters
+    aa_multiplier = inferred_params.iloc[aa_start_index:aa_start_index+len(unique_indices),0].to_numpy()
     aa_multiplier = np.insert(aa_multiplier,0,0)
     #Insert 0 for no substitution
     
@@ -369,22 +461,54 @@ def pooled_inference(TCR_index, # TCR index for each peptide
     inferred_aa_matrix = np.zeros((20,20))+(1+inferred_params.iloc[0,0])
     
     if mode=='symm': #Construct symmetric AA matrix multiplier
-        for aa1 in np.arange(0,19,1):
-            for aa2 in np.arange(0,19,1):
+        for aa1 in np.arange(0,20,1):
+            for aa2 in np.arange(0,20,1):
                if 20*min(aa1,aa2)+max(aa1,aa2) in unique_indices:
                    inferred_aa_matrix[aa1,aa2] = 1+aa_multiplier[
                        np.where(unique_indices==20*min(aa1,aa2)+max(aa1,aa2))[0][0]]                   
                    # Takes care of AA reindexing done at the beginning
       
     if mode=='full': #Construct full AA matrix multiplier
-        for aa1 in np.arange(0,19,1):
-            for aa2 in np.arange(0,19,1):
+        for aa1 in np.arange(0,20,1):
+            for aa2 in np.arange(0,20,1):
                if 20*aa1+aa2 in unique_indices:
                    inferred_aa_matrix[aa1,aa2] = 1+aa_multiplier[
                        np.where(unique_indices==20*aa1+aa2)[0][0]]                   
                    # Takes care of AA reindexing done at the beginning
- 
-    return inferred_weights,inferred_aa_matrix
+    
+    # Return parameters if MHC info is absent
+    if np.sum(peptide_bindlevel)==0 and np.sum(mhc_features)==0: #No MHC info available
+        return inferred_weights,inferred_aa_matrix
+    
+    else: #MHC info available
+        # Get locations of MHC parameters        
+        mhc_effect_index = np.argwhere(inferred_params.index=='mhc_effect_add[0, 0]')[0,0]
+        
+        # Extract inferred MHC effect parameters
+        inferred_mhc_effect_add = np.reshape(inferred_params.iloc[
+            mhc_effect_index:mhc_effect_index+n_tcr*3,0].to_numpy(),
+            newshape=(n_tcr,3),order='C')
+        
+        # Output
+        inferred_mhc_effects = inferred_mhc_effect_add
+        
+        if np.sum(mhc_features)!=0: #MHC feature info available        
+            # Extract TCR-specific MHC binding feature
+            # Get locations of MHC parameters
+            mhc_feature_effect_index = np.argwhere(
+                        inferred_params.index=='mhc_feature_effect[0, 0]')[0,0]
+            
+            # Extract inferred MHC effect parameters
+            inferred_mhc_feature_effects = np.reshape(inferred_params.iloc[
+                mhc_feature_effect_index:mhc_feature_effect_index+n_tcr*np.shape(mhc_features)[1],
+                0].to_numpy(),
+                newshape=(n_tcr,np.shape(mhc_features)[1]),order='C')
+            
+            # Output
+            inferred_mhc_effects = np.concatenate((inferred_mhc_effect_add,
+                                    inferred_mhc_feature_effects),axis=1)
+                    
+        return inferred_weights,inferred_aa_matrix,inferred_mhc_effects
 ##############################################################################
 
 '''
@@ -402,14 +526,18 @@ Runs in one of 3 modes: weights_only, full, or symm, based on if only weights
 are inferred (AA matrix being the one specified) or if both weights and AA matrices
 are inferred (symmetric or full AA matrix)
 
+(Optional) NetMHCPan pMHC binding info can be input as one of: SB, WB, NB
+(Optional) pMHC features under columns 'pmhc_feature_*' for regression
+
 Also takes #steps for sampling and a seed argument for reproduction 
 
 '''
 
-def train(filename,#Path to file containing TCR data (see example for format)
+def train(filename,#Path to file or pandas df with TCR data (see example for format)
           mode,# weights_only, symm, or full
           # Default values of optional parameters
-          aa_matrix='BLOSUM100',#Named or user-defined AA matrix used for regularization
+          aa_matrix='blosum100',#Named or user-defined AA matrix used for regularization
+          consider_mhc_binding=False, # whether or not to consider NetMHCPan info
           seed=100,#seed for sampling
           steps=20000):# number of steps for sampling
 
@@ -418,39 +546,68 @@ def train(filename,#Path to file containing TCR data (see example for format)
     import numpy as np
     import os.path, sys
     
-    
-    # Mode must be specified as one of 3 options
+    '''Check input'''
+    # BATMAN Mode must be specified as one of 3 options
     if mode not in ('weights_only','symm','full'):
         sys.exit("Mode must be one of: 'weights_only', 'symm', 'full'")
     
-    # Check if file exists and is csv
-    if os.path.isfile(filename)==False:
-        sys.exit("File does not exist. Check filename and/or directory again.")
+    # If input is not a pandas dataframe
+    if isinstance(filename, pd.DataFrame)==False:
+        # Check if file exists and is csv
+        if os.path.isfile(filename)==False:
+            sys.exit("File or DataFrame does not exist. Check filename and directory.")
+        
+        if filename.endswith('.csv')==False:
+            sys.exit("Input must be csv file or pandas DataFrame. See example input for details.")
     
-    if filename.endswith('.csv')==False:
-        sys.exit("File must be of csv format. See example input for details.")
+        # Read file
+        peptide_data = pd.read_csv(filename)
+        
+    else: # If input is a pandas DataFrame
+        peptide_data = filename.copy() # Read DataFrame    
     
-    # Check that file has correct headers for relevant columns
+    # Check that input has correct headers for relevant columns
     if {'activation', 'index', 'peptide', 'tcr'}.issubset(
-            set(pd.read_csv(filename).columns))==False:
-        sys.exit(''.join(["Input file must have these 4 headers:", 
+            set(peptide_data.columns))==False:
+        sys.exit(''.join(["Input must have these 4 headers:", 
                  "'activation', 'index', 'peptide', 'tcr'.",
                  "Check spelling and have all headers in lower case."]))
 
     # Check that 'activation' column has 0 and integer data
-    if ((pd.read_csv(filename)['activation'].to_numpy().dtype.kind not in ('i','u'))
-    or (min(pd.read_csv(filename)['activation'].to_numpy()))!=0):
+    if ((peptide_data['activation'].to_numpy().dtype.kind not in ('i','u'))
+    or (min(peptide_data['activation'].to_numpy()))!=0):
         sys.exit("activation levels must be 0 and positive integer(s) (smaller=weaker)")
     
     # Check that all activation levels between 0 to K (max) are present in data
-    if sum(np.unique(pd.read_csv(filename)['activation'])!=
-           np.arange(0,1+max((pd.read_csv(filename)['activation'].to_numpy())),1))!=0:
+    if sum(np.unique(peptide_data['activation'])!=
+           np.arange(0,1+max((peptide_data['activation'].to_numpy())),1))!=0:
         sys.exit("One or more missing activation levels in data")
     
+    # By default, we don't use MHC bind level and features
+    peptide_bindlevel = np.zeros((len(peptide_data),1))
+    mhc_features = np.zeros((len(peptide_data),1))
     
-    # Read and featurize peptide data
-    peptide_data = pd.read_csv(filename)
-    
+    # If MHC binding information is used
+    if consider_mhc_binding:
+        # Check that MHC info is present and in correct format
+        if {'BindLevel'}.issubset(
+                set(peptide_data.columns))==False:
+            sys.exit(''.join(["Input file must have a pMHC binding column", 
+                     " with name BindLevel."]))
+        
+        if set(np.unique(peptide_data['BindLevel'])).issubset({'SB','WB','NB'})==False:
+            sys.exit('BindLevel must be SB, WB, or, NB')
+            
+        # Check that additional MHC features, if present, are numerical
+        mhc_feature_index = peptide_data.columns[
+            np.char.find(list(peptide_data.columns),'pmhc_feature_')!=-1]
+        if len(mhc_feature_index)>0:
+            mhc_features = peptide_data.loc[:,mhc_feature_index].to_numpy()
+            if mhc_features.dtype.kind not in ('i','u','f'):
+              sys.exit('pMHC features must be numerical')  
+            
+       
+    '''featurize peptide data'''        
     # Assign indices to unique TCRs in data
     TCR_names, TCR_index = np.unique(peptide_data['tcr'], return_inverse=True)
     
@@ -467,17 +624,48 @@ def train(filename,#Path to file containing TCR data (see example for format)
     # Peptide activation categories
     peptide_activation_category = peptide_data['activation'].to_numpy()
     
-    if mode=='weights_only':
-        # Run sampling for Inference of only weights
-        inferred_weights = pooled_inference_weights_only(TCR_index, 
-                                                         peptide_feature, 
-                                                         peptide_activation_category, 
-                                                         seed=seed, steps=steps)
-        # Add TCR names
-        inferred_weights = pd.DataFrame(inferred_weights,index=TCR_names)
-        return inferred_weights
     
-    else: 
+    # If MHC binding information is used
+    if consider_mhc_binding:  
+        # store MHC binding data as binary feature vector
+        bindlevel = peptide_data['BindLevel']
+        peptide_bindlevel = np.zeros((len(peptide_data),3))
+        peptide_bindlevel[bindlevel=='NB',0] = 1
+        peptide_bindlevel[bindlevel=='WB',1] = 1
+        peptide_bindlevel[bindlevel=='SB',2] = 1
+    
+    if mode=='weights_only':
+        if consider_mhc_binding: #MHC binding info present
+            # Run sampling for Inference of only weights
+            inferred_weights,inferred_mhc_effects = pooled_inference_weights_only(TCR_index, 
+                                                             peptide_feature, 
+                                                             peptide_activation_category,
+                                                             peptide_bindlevel=peptide_bindlevel,
+                                                             mhc_features = mhc_features,
+                                                             seed=seed, steps=steps)
+            # Add TCR names
+            inferred_weights = pd.DataFrame(inferred_weights,index=TCR_names)
+            inferred_mhc_effects = pd.DataFrame(inferred_mhc_effects,
+                                                index=TCR_names)
+            # add MHC binding category
+            inferred_mhc_effects.columns = ['SB','WB','NB']+list(mhc_feature_index) 
+            
+            return inferred_weights,inferred_mhc_effects             
+            
+        else: #MHC binding info absent
+            # Run sampling for Inference of only weights
+            inferred_weights = pooled_inference_weights_only(TCR_index, 
+                                                             peptide_feature, 
+                                                             peptide_activation_category,
+                                                             peptide_bindlevel=peptide_bindlevel,
+                                                             mhc_features = mhc_features,
+                                                             seed=seed, steps=steps)
+            # Add TCR names
+            inferred_weights = pd.DataFrame(inferred_weights,index=TCR_names)
+            
+            return inferred_weights
+    
+    else: #Infer both weights and AA matrix
         
         #AA name list
         aa_list=np.array(['A','C','D','E','F','G','H','I','K','L','M','N','P','Q','R',
@@ -503,13 +691,28 @@ def train(filename,#Path to file containing TCR data (see example for format)
             aa_subs[index_aa==peptide_aa]=0 #assign 0 to positions with unchanged AA 
             aa_change_index = aa_subs.reshape(np.shape(peptide_feature))   
         
+        
         # Run Inference
-        inferred_weights,inferred_aa_matrix = pooled_inference(TCR_index,
-                                                               peptide_feature, 
-                                                               peptide_activation_category, 
-                                                               aa_change_index, 
-                                                               mode=mode, 
-                                                               seed=seed, steps=steps)
+        if consider_mhc_binding: #MHC binding info present
+            inferred_weights,inferred_aa_matrix,inferred_mhc_effect = pooled_inference(TCR_index,
+                                                peptide_feature, 
+                                                peptide_activation_category, 
+                                                aa_change_index, 
+                                                mode=mode,
+                                                peptide_bindlevel=peptide_bindlevel,
+                                                mhc_features = mhc_features,
+                                                seed=seed, steps=steps)
+        else: #MHC binding info absent
+            inferred_weights,inferred_aa_matrix = pooled_inference(TCR_index,
+                                                peptide_feature, 
+                                                peptide_activation_category, 
+                                                aa_change_index, 
+                                                mode=mode,
+                                                peptide_bindlevel=peptide_bindlevel,
+                                                mhc_features = mhc_features,
+                                                seed=seed, steps=steps)
+        
+        
         # Add TCR names
         inferred_weights = pd.DataFrame(inferred_weights,index=TCR_names)
         
@@ -526,6 +729,18 @@ def train(filename,#Path to file containing TCR data (see example for format)
           
         inferred_aa_matrix = aa_matrix_prior*inferred_aa_matrix 
         
-    return inferred_weights,inferred_aa_matrix
+    #Return parameters    
+    if consider_mhc_binding==False: #MHC binding info absent
+        return inferred_weights,inferred_aa_matrix
+    
+    else: #MHC binding info present
+        # Add TCR names
+        
+        inferred_mhc_effect = pd.DataFrame(inferred_mhc_effect,
+                                            index=TCR_names)
+        
+       # add MHC binding category
+        inferred_mhc_effect.columns = ['NB','WB','SB']+list(mhc_feature_index)        
+        return inferred_weights,inferred_aa_matrix,inferred_mhc_effect
 
 ##############################################################################
