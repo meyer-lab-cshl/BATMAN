@@ -1,5 +1,5 @@
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)&emsp;[![DOI:10.1101/2024.01.22.576714](http://img.shields.io/badge/DOI-10.1101/2024.01.22.576714-B31B1B.svg)](https://doi.org/10.1101/2024.01.22.576714)&emsp;[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)&emsp;![Pepy Total Downloads](https://img.shields.io/pepy/dt/pybatman?style=flat-square&color=%23A52A2A)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb)&emsp;[![DOI:10.1101/2024.01.22.576714](http://img.shields.io/badge/DOI-10.1101/2024.01.22.576714-B31B1B.svg)](https://doi.org/10.1101/2024.01.22.576714)&emsp;[![PyPI version](https://badge.fury.io/py/pybatman.svg)](https://pypi.org/project/pybatman/)&emsp;[![Pepy Total Downloads](https://img.shields.io/pepy/dt/pybatman?style=flat-square&color=A52A2A)](https://pypistats.org/packages/pybatman)
 
 
 # BATMAN: <ins>B</ins>ayesian Inference of <ins>A</ins>ctivation of <ins>T</ins>CR by <ins>M</ins>utant <ins>An</ins>tigens
