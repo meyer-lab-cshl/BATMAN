@@ -262,18 +262,21 @@ def pooled_inference_weights_only(TCR_index, # TCR index for each peptide
          inferred_params = az.summary(posterior_draws.sample(50000))
          
          
-    # Extract position-dependent weights of TCRs         
-    inferred_weights=np.reshape(inferred_params.iloc[
-        (n_tcr+3):(n_tcr+3+n_tcr*peptide_length),0].to_numpy(),
-        newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
+    # 1. Filter the DataFrame for variables that start with or contain "weights"
+    weights_df = inferred_params.filter(regex=r"^weights(\[|$)", axis=0)
     
-    # Extract sd of position-dependent weights of TCRs         
-    inferred_weights_sd=np.reshape(inferred_params.iloc[
-        (n_tcr+3):(n_tcr+3+n_tcr*peptide_length),1].to_numpy(),
-        newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
+    # 2. Convert directly to numpy arrays of the correct shape and order
+    inferred_weights = np.reshape(
+        weights_df.iloc[:, 0].to_numpy(),
+        newshape=(n_tcr, peptide_length),
+        order="C")
+    
+    inferred_weights_sd = np.reshape(
+        weights_df.iloc[:, 1].to_numpy(),
+        newshape=(n_tcr, peptide_length),
+        order="C")
     
     return inferred_weights,inferred_weights_sd
-
 #######################################################################
 
 '''
@@ -344,11 +347,16 @@ def inference_weights_only(peptide_feature, # features for each peptide
                                 random_seed=seed,progressbar=True)
          inferred_params = az.summary(posterior_draws.sample(50000))
     #print(inferred_params)
-    # Extract position-dependent weights of TCRs         
-    inferred_weights=np.reshape(inferred_params.iloc[
-        0:(0+peptide_length),0].to_numpy(),
-        newshape=(1,peptide_length),order='C')
     
+    # Filter the DataFrame rows specifically for index labels containing "weights"
+    # 1. Safely extract "weights" rows strictly (prevents partial matches like "alpha_w")
+    weights_df = inferred_params.filter(regex=r"^weights(\[|$)", axis=0)
+    
+    # 2. Extract mean values (column 0) and reshape back to (1, peptide_length)         
+    inferred_weights = np.reshape(
+        weights_df.iloc[:, 0].to_numpy(),
+        newshape=(1, peptide_length),
+        order='C')  
     
         
     return inferred_weights
@@ -440,26 +448,28 @@ def pooled_inference(TCR_index, # TCR index for each peptide
                                 random_seed=seed,progressbar=True)
          inferred_params = az.summary(posterior_draws.sample(50000))     
          
-    # Extract position-dependent weights of TCRs         
-    inferred_weights=np.reshape(inferred_params.iloc[
-        (n_tcr+len(unique_indices)+4):
-        (n_tcr+len(unique_indices)+4+n_tcr*peptide_length),0].to_numpy(),
-        newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
+    # 1. Safely extract "weights" rows (ignores alpha_w and beta_w)
+    weights_df = inferred_params.filter(regex=r"^weights(\[|$)", axis=0)
+    
+    inferred_weights = np.reshape(
+        weights_df.iloc[:, 0].to_numpy(),
+        newshape=(n_tcr, peptide_length), order='C')
         
-    # Extract errors in position-dependent weights of TCRs
-    inferred_weights_sd=np.reshape(inferred_params.iloc[
-        (n_tcr+len(unique_indices)+4):
-        (n_tcr+len(unique_indices)+4+n_tcr*peptide_length),1].to_numpy(),
-        newshape=(n_tcr,peptide_length),order='C') #TCR-by-position
+    inferred_weights_sd = np.reshape(
+        weights_df.iloc[:, 1].to_numpy(),
+        newshape=(n_tcr, peptide_length), order='C')
         
-    # Extract inferred AA distance matrix multipliers 
-    aa_multiplier = inferred_params.iloc[1:len(unique_indices),0].to_numpy()
-    aa_multiplier = np.insert(aa_multiplier,0,0)
-    #Insert 0 for no substitution
+    # 2. Safely extract "aa_distance_multiplier" rows
+    multiplier_df = inferred_params.filter(like="aa_distance_multiplier", axis=0)
+    aa_multiplier = multiplier_df.iloc[:, 0].to_numpy()
+    aa_multiplier = np.insert(aa_multiplier, 0, 0) # Insert 0 for no substitution
+    
+    # 3. Safely locate global mean "mu" by name instead of row index 0
+    inferred_mu = inferred_params.loc["mu", "mean"]
     
     # Reconstruct full AA factor matrix (to be multiplied with regularizer)
     # Initialize with inferred mean of the pooling distribution for AA multiplier
-    inferred_aa_matrix = np.zeros((20,20))+(1+inferred_params.iloc[0,0])
+    inferred_aa_matrix = np.zeros((20,20)) + (1 + inferred_mu)
     
     if mode=='symm': #Construct symmetric AA matrix multiplier
         for aa1 in np.arange(0,20,1):
