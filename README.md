@@ -82,6 +82,21 @@ peptide_distance = peptide2index(index_peptide,
 
 For an interactive tutorial on different functions available with pyBATMAN, please refer to our [jupyter notebook](https://github.com/meyer-lab-cshl/BATMAN/blob/main/run_batman/pyBATMAN_Tutorial.ipynb). The Jupyter notebook trains and validates pyBATMAN on the test data and visualizes the results.
 
+Finally, due to compatibility issues between pyBATMAN and pyMC and NumPy, if you get an ```AttributeError```, try the following patch, while we work on a new pyBATMAN upgrade.
+
+```
+import numpy as np
+import sys
+# NumPy 2.0+ fallback for removed np.compare_chararrays
+if not hasattr(np, 'compare_chararrays'):
+    setattr(np, 'compare_chararrays', np.char.compare_chararrays)
+
+import pymc.distributions.transforms as tx
+# PyMC back-compatibility: univariate_ordered is now just ordered
+if not hasattr(tx, 'univariate_ordered'):
+    setattr(tx, 'univariate_ordered', tx.ordered)
+```
+
 # Downloading BATMAN dataset
 The fully curated database of publicly-available TCR-pMHC interactions can be downloaded from the [database folder](https://github.com/meyer-lab-cshl/BATMAN-paper/tree/main/results_batman/tcr_epitope_datasets/mutational_scan_datasets/database) in the publication repository.
 
